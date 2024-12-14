@@ -13,7 +13,7 @@ RUN sudo http_proxy=${HTTP_PROXY} https_proxy=${HTTPS_PROXY} apt-get update -y \
     && sudo http_proxy=${HTTP_PROXY} https_proxy=${HTTPS_PROXY} apt-get install -y openjdk-8-jdk \
     && sudo mkdir /raydp \
     && sudo chown -R ray /raydp \
-    && $HOME/anaconda3/bin/pip --no-cache-dir install ray[default] raydp
+    && $HOME/anaconda3/bin/pip --no-cache-dir install raydp
 
 WORKDIR /raydp
 
