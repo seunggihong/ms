@@ -1,0 +1,26 @@
+services:
+  airflow:
+    image: apache/airflow:2.6.2
+    container_name: airflow_container
+    restart: always
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__RBAC=True
+      - AIRFLOW__WEBSERVER__BASE_URL=http://myairdash.com
+    volumes:
+      - ./airflow:/opt/airflow
+    ports:
+      - "8080:8080"
+    command: ["airflow", "webserver"]
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_container
+    restart: always
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+    depends_on:
+      - airflow
