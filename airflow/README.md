@@ -1,0 +1,5 @@
+.env file
+```
+LOCAL_SAVE_DATA_PATH={PATH}
+LOCAL_SAVE_LOG_PATH={PATH}
+```
