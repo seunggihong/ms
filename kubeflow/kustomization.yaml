@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+sortOptions:
+  order: legacy
+  legacySortOptions:
+    orderFirst:
+      - Namespace
+      - ResourceQuota
+      - StorageClass
+      - CustomResourceDefinition
+      - MutatingWebhookConfiguration
+      - ServiceAccount
+      - PodSecurityPolicy
+      - Role
+      - ClusterRole
+      - RoleBinding
+      - ClusterRoleBinding
+      - ConfigMap
+      - Secret
+      - Endpoints
+      - Service
+      - LimitRange
+      - PriorityClass
+      - PersistentVolume
+      - PersistentVolumeClaim
+      - Deployment
+      - StatefulSet
+      - CronJob
+      - PodDisruptionBudget
+    orderLast:
+      - ValidatingWebhookConfiguration
+
+resources:
+  # Cert-Manager
+  - ../common/cert-manager/cert-manager/base
+  - ../common/cert-manager/kubeflow-issuer/base
+
+  # Istio
+  - ../common/istio-1-17/istio-crds/base
+  - ../common/istio-1-17/istio-namespace/base
+  - ../common/istio-1-17/istio-install/base
+  - ../common/istio-1-17/kubeflow-istio-resources/base
+
+  # Kubeflow Core Namespace, Roles
+  - ../common/kubeflow-namespace/base
+  - ../common/kubeflow-roles/base
+
+  # Profiles (User Namespace Management)
+  - ../apps/profiles/upstream/overlays/kubeflow
+
+  # Admission Webhook
+  - ../apps/admission-webhook/upstream/overlays/cert-manager
+
+  # Jupyter (Notebook)
+  - ../apps/jupyter/notebook-controller/upstream/overlays/kubeflow
+  - ../apps/jupyter/jupyter-web-app/upstream/overlays/istio
+
+  # Pipelines
+  - ../apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
+
+  # Katib
+  - ../apps/katib/upstream/installs/katib-with-kubeflow
+
+  # Knative (for KServe)
+  - ../common/knative/knative-serving/overlays/gateways
+  - ../common/istio-1-17/cluster-local-gateway/base
+
+  # KServe
+  - ../contrib/kserve/kserve
+  - ../contrib/kserve/models-web-app/overlays/kubeflow
