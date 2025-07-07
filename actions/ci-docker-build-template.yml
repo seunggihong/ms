@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: "Docker 이미지에 사용할 태그 (예: v1.0.0)"
+        description: "Docker 이미지에 사용할 태그"
         required: true
         type: string
     secrets:
