@@ -1,0 +1,96 @@
+# 워크플로우 이름
+name: <Workflow_Name> # 예: Reusable Build and Push
+
+# 이 워크플로우는 다른 워크플로우에서 호출되도록 구성됨
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Docker 이미지에 사용할 태그 (예: v1.0.0)"
+        required: true
+        type: string
+    secrets:
+      REGISTRY_URL: # 예: harbor.example.com
+        required: true
+      REGISTRY_USERNAME: # Harbor 로그인 계정
+        required: true
+      REGISTRY_PASSWORD: # Harbor 로그인 비밀번호
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # 이미지 빌드를 위한 매트릭스 전략
+    strategy:
+      matrix:
+        image:
+          # ⬇️ 빌드할 이미지들 정의 (복수 개 가능)
+          # file: Dockerfile 경로, name: 서비스 이름 (태그/파일명에 사용됨)
+          - { name: "<service_name_1>", file: "<dockerfile_path_1>" }
+          - { name: "<service_name_2>", file: "<dockerfile_path_2>" }
+
+    steps:
+      # 1. 소스 코드 체크아웃
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # 2. Buildx 세팅 (멀티 플랫폼 빌드 지원 도구)
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Docker 이미지 빌드 및 tar 파일로 출력
+      - name: Docker 이미지 빌드 및 tar로 내보내기
+        uses: docker/build-push-action@v5
+        with:
+          context: <context_path> # 예: . 또는 ./backend
+          file: <dockerfile_root_path>/${{ matrix.image.file }} # Dockerfile 경로 예: docker/prod/${{ matrix.image.file }}
+          tags: <local_tag_prefix>-${{ matrix.image.name }}:${{ inputs.tag }} # 예: myapp-${{ matrix.image.name }}:${{ inputs.tag }}
+          platforms: linux/amd64
+          outputs: type=docker,dest=./${{ matrix.image.name }}.tar
+
+      # 4. tar 파일을 artifact로 업로드 (self-hosted runner에서 다운로드 예정)
+      - name: 빌드 결과 업로드 (아티팩트)
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.image.name }}-${{ inputs.tag }}
+          path: ./${{ matrix.image.name }}.tar
+          retention-days: 1
+
+  push:
+    needs: build
+    runs-on: self-hosted # Harbor 접근 가능한 러너
+
+    strategy:
+      matrix:
+        image:
+          # ⬇️ 위 build job의 image name과 동일하게 나열
+          - { name: "<service_name_1>" }
+          - { name: "<service_name_2>" }
+
+    steps:
+      # 1. 아티팩트 다운로드
+      - name: 아티펙스에서 이미지 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.image.name }}-${{ inputs.tag }}
+
+      # 2. Docker 이미지 로드
+      - name: 도커 이미지 로드
+        run: docker load -i ${{ matrix.image.name }}.tar
+
+      # 3. Harbor 로그인
+      - name: 하버 로그인
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ secrets.REGISTRY_URL }} \
+            -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+
+      # 4. 태깅 및 푸시
+      - name: 태깅 및 하버에 푸시
+        run: |
+          TAG=${{ inputs.tag }}
+          IMAGE_NAME=<local_tag_prefix>-${{ matrix.image.name }}:$TAG
+          TARGET=${{ secrets.REGISTRY_URL }}/<registry_project_path>/<target_image_prefix>-${{ matrix.image.name }}:<target_tag_suffix_or_use_$TAG>
+
+          docker tag $IMAGE_NAME $TARGET
+          docker push $TARGET
